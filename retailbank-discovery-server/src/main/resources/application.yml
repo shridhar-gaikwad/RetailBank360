@@ -1,0 +1,33 @@
+server:
+  port: 8761
+
+spring:
+  application:
+    name: retailbank-discovery-server
+
+eureka:
+  instance:
+    hostname: ${EUREKA_HOSTNAME:localhost}
+  client:
+    # A standalone registry: it does not register with, or fetch from, itself.
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+  server:
+    # Self-preservation trips on a small cluster with few heartbeats and then refuses to evict dead
+    # instances, which is confusing in a demo. Off here; leave it ON in production.
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 15000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.retailbank360: ${APP_LOG_LEVEL:INFO}
+    com.netflix.eureka: ${EUREKA_LOG_LEVEL:WARN}
+    com.netflix.discovery: ${EUREKA_LOG_LEVEL:WARN}

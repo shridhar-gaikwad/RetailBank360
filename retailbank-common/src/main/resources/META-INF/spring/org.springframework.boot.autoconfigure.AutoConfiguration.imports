@@ -1,0 +1,5 @@
+org.retailbank360.common.autoconfigure.RetailBankCoreAutoConfiguration
+org.retailbank360.common.autoconfigure.RetailBankFeignAutoConfiguration
+org.retailbank360.common.autoconfigure.RetailBankWebAutoConfiguration
+org.retailbank360.common.autoconfigure.RetailBankSecurityAutoConfiguration
+org.retailbank360.common.autoconfigure.RetailBankPersistenceAutoConfiguration

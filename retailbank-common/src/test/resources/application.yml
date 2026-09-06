@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: retailbank-common-test
+
+  datasource:
+    # Shared named in-memory database: several lock managers in one test represent several service
+    # instances talking to the same database, which is what the distributed lock has to cope with.
+    url: jdbc:h2:mem:retailbank_common_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  # retailbank-common is a library and owns no schema of its own: the lock and idempotency tables
+  # ship inside each service's baseline migration, and those services' tests validate them.
+  # Here Hibernate generates the schema straight from the entities.
+  flyway:
+    enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    show-sql: false
+
+retailbank:
+  # Test keys. The services now refuse to start without them, which is the point: a missing key
+  # should fail loudly rather than fall back to something shipped in the repository.
+  security:
+    jwt:
+      secret: test-only-retailbank360-signing-secret-32-bytes+
+      issuer: retailbank360
+  crypto:
+    data-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYWVzMjU2LWtleSE=
+    blind-index-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYmxpbmQtaWR4IQ==
+  audit:
+    enabled: false
+  notification:
+    enabled: false
+  lock:
+    default-ttl: 2s
+    default-wait: 1s
+    retry-delay: 20ms
+    max-retry-delay: 100ms
+    # No grace period in tests, so an expired lock is reapable the moment it lapses.
+    reaper-grace-period: 0s
+    reaper-interval: 1h
+
+logging:
+  level:
+    org.retailbank360: INFO
+    # The contention tests deliberately provoke unique-constraint races on the lock row: that is
+    # the mechanism under test, and Hibernate logs each one at ERROR. Silenced here so a passing
+    # run does not look like a failing one.
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: OFF

@@ -1,21 +1,28 @@
 server:
-  port: 8084
+  # Was 8084, which collided with transaction-service. Account-service now owns 8083.
+  port: 8083
 
 spring:
   application:
     name: retailbank-account-service
 
-  datasource:
-    url: jdbc:postgresql://localhost:5432/retailbank_account_db
-    username: postgres
-    password: postgres
+  profiles:
+    active: h2
+
+  # The schema is owned by Flyway. {vendor} resolves to h2 or postgresql, so each database
+  # gets DDL in its own dialect from one set of versioned migrations.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/{vendor}
+    baseline-on-migrate: true
 
   jpa:
     hibernate:
-      ddl-auto: update
-
-    show-sql: true
-
+      # validate, not update: a mapping that has outrun its migration stops the service at
+      # startup instead of silently altering a live schema.
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: true
@@ -24,8 +31,132 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
 
 logging:
   level:
-    org.hibernate.SQL: DEBUG
+    # Off by default: SQL logging is per-statement and unusable beyond local debugging.
+    # Switch on with SQL_LOG_LEVEL=DEBUG SHOW_SQL=true, or APP_LOG_LEVEL=DEBUG for the app.
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:INFO}
+    org.retailbank360: ${APP_LOG_LEVEL:INFO}
+
+retailbank:
+  services:
+    customer:
+      url: ${RETAILBANK_CUSTOMER_URL:http://localhost:8082}
+
+  security:
+    jwt:
+      secret: ${RETAILBANK_JWT_SECRET:}
+      issuer: retailbank360
+
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:}
+
+  audit:
+    url: ${RETAILBANK_AUDIT_URL:http://localhost:8087}
+
+  notification:
+    url: ${RETAILBANK_NOTIFICATION_URL:http://localhost:8086}
+
+  # Locking is at its most important in this service: it owns every balance in the bank.
+  lock:
+    enabled: true
+    # Long enough for a transfer to finish comfortably, short enough that a crashed node frees the
+    # account quickly. Anything left behind by a crash becomes stealable after this window.
+    default-ttl: 30s
+    # A caller waits at most this long for a busy account before getting 423 with a Retry-After.
+    default-wait: 5s
+    retry-delay: 50ms
+    max-retry-delay: 500ms
+    reaper-interval: 30s
+    reaper-grace-period: 10s
+    deadlock-retries: 3
+    deadlock-retry-delay: 100ms
+    audit-retention: 30d
+
+  rate-limit:
+    enabled: true
+    rules:
+      - path-pattern: /api/v1/accounts/internal/**
+        limit: 300
+        window: 1m
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 8000
+
+eureka:
+  client:
+    # Off by default: the services address each other by configured URL, so the POC needs no registry.
+    # Run with the 'discovery' profile (and the discovery server) to switch to lookup by name.
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    # The instance id includes the port, so several instances of one service on a host stay distinct -
+    # which is the case the distributed lock exists for.
+    instance-id: ${spring.application.name}:${server.port}:${random.value}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: discovery
+
+# Register with the discovery server and resolve peers by name.
+eureka:
+  client:
+    enabled: true
+
+# Blanking the direct URLs is what makes Feign fall back to the load balancer: a client
+# with a url resolves it and never consults the registry.
+retailbank:
+  services:
+    customer:
+      url: ""
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+
+
+  datasource:
+    url: jdbc:h2:file:./data/retailbank_account;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# Throwaway keys for local development only. Every other profile must supply these through the
+# environment, and the services refuse to start without them.
+retailbank:
+  security:
+    jwt:
+      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/retailbank_account_db
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
