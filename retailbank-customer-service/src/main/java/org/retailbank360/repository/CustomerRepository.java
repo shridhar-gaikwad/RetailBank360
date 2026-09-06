@@ -59,4 +59,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Customer c where c.id = :id")
     Optional<Customer> findByIdForUpdate(@Param("id") Long id);
+
+    Customer update(Customer customer);
+
+    Optional<Customer> findByMobileNumber(String mobileNumber);
 }
