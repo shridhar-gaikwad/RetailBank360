@@ -5,17 +5,25 @@ spring:
   application:
     name: retailbank-auth-service
 
-  datasource:
-    url: jdbc:postgresql://localhost:5432/retailbank_auth_db
-    username: postgres
-    password: postgres
+  profiles:
+    # h2 keeps the POC runnable with zero setup. Start with -Dspring.profiles.active=postgres
+    # (or SPRING_PROFILES_ACTIVE=postgres) to use the PostgreSQL configuration further down.
+    active: h2
+
+  # The schema is owned by Flyway. {vendor} resolves to h2 or postgresql, so each database
+  # gets DDL in its own dialect from one set of versioned migrations.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/{vendor}
+    baseline-on-migrate: true
 
   jpa:
     hibernate:
-      ddl-auto: update
-
-    show-sql: true
-
+      # validate, not update: a mapping that has outrun its migration stops the service at
+      # startup instead of silently altering a live schema.
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: true
@@ -24,8 +32,131 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
 
 logging:
   level:
-    org.hibernate.SQL: DEBUG
+    # Off by default: SQL logging is per-statement and unusable beyond local debugging.
+    # Switch on with SQL_LOG_LEVEL=DEBUG SHOW_SQL=true, or APP_LOG_LEVEL=DEBUG for the app.
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:INFO}
+    org.retailbank360: ${APP_LOG_LEVEL:INFO}
+
+retailbank:
+  # Creates one demo login per role on first start. Never enable this outside local development.
+  seed-demo-data: true
+
+  security:
+    jwt:
+      # Must be identical on every service. Override with RETAILBANK_JWT_SECRET in any real deployment.
+      secret: ${RETAILBANK_JWT_SECRET:}
+      issuer: retailbank360
+      access-token-ttl: 30m
+      refresh-token-ttl: 7d
+    public-paths:
+      - /actuator/health/**
+      - /actuator/info
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /h2-console/**
+      - /api/v1/auth/login
+      - /api/v1/auth/mfa/verify
+      - /api/v1/auth/refresh
+      - /api/v1/auth/logout
+
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:}
+
+  # This service raises no customer-facing events.
+  notification:
+    enabled: false
+
+  audit:
+    url: ${RETAILBANK_AUDIT_URL:http://localhost:8087}
+
+  # Brute-force protection on the credential endpoints, keyed by IP for anonymous callers.
+  rate-limit:
+    enabled: true
+    rules:
+      - path-pattern: /api/v1/auth/login
+        method: POST
+        limit: 5
+        window: 1m
+      - path-pattern: /api/v1/auth/mfa/verify
+        method: POST
+        limit: 10
+        window: 1m
+      - path-pattern: /api/v1/auth/refresh
+        method: POST
+        limit: 30
+        window: 1m
+
+eureka:
+  client:
+    # Off by default: the services address each other by configured URL, so the POC needs no registry.
+    # Run with the 'discovery' profile (and the discovery server) to switch to lookup by name.
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    # The instance id includes the port, so several instances of one service on a host stay distinct -
+    # which is the case the distributed lock exists for.
+    instance-id: ${spring.application.name}:${server.port}:${random.value}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: discovery
+
+# Register with the discovery server and resolve peers by name.
+eureka:
+  client:
+    enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+
+
+  datasource:
+    # AUTO_SERVER lets several instances of this service share one file database, which is what makes
+    # the distributed-lock demo meaningful on a single machine.
+    url: jdbc:h2:file:./data/retailbank_auth;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# Throwaway keys for local development only. Every other profile must supply these through the
+# environment, and the services refuse to start without them.
+retailbank:
+  security:
+    jwt:
+      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/retailbank_auth_db
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+retailbank:
+  seed-demo-data: false

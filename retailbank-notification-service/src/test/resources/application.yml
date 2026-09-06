@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: retailbank-notification-service-test
+
+retailbank:
+  services:
+    # Never dialled: the Feign client is replaced with a mock in the test.
+    customer:
+      url: http://localhost:0
+  # Test keys. The services now refuse to start without them, which is the point: a missing key
+  # should fail loudly rather than fall back to something shipped in the repository.
+  crypto:
+    data-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYWVzMjU2LWtleSE=
+    blind-index-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYmxpbmQtaWR4IQ==
+  security:
+    enabled: false
+    jwt:
+      secret: test-only-retailbank360-signing-secret-32-bytes+
+      issuer: retailbank360
+  audit:
+    enabled: false
+  notification:
+    enabled: false
+
+logging:
+  level:
+    org.retailbank360: INFO

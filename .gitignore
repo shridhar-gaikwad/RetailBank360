@@ -1,39 +1,31 @@
+# Build output
 target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-.kotlin
+*.jar
+*.war
 
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-*.iws
+# H2 file databases created by the local profile.
+# Deliberately narrow: the services write ./data/retailbank_<name>.mv.db relative to wherever they
+# are started, so the H2 artifacts are matched by name rather than by ignoring whole data/ folders,
+# which may legitimately hold checked-in fixtures.
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Real secrets. Only the example file is committed.
+.env
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
 *.iml
-*.ipr
-
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
 .vscode/
+.settings/
+.classpath
+.project
 
-### Mac OS ###
+# OS
+Thumbs.db
 .DS_Store

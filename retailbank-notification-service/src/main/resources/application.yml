@@ -2,30 +2,87 @@ server:
   port: 8086
 
 spring:
+  profiles:
+    # 'h2' is the platform-wide local development profile.
+    active: h2
+
   application:
     name: retailbank-notification-service
-
-  datasource:
-    url: jdbc:postgresql://localhost:5432/retailbank_notification_db
-    username: postgres
-    password: postgres
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-
-    show-sql: true
-
-    properties:
-      hibernate:
-        format_sql: true
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
 
 logging:
   level:
-    org.hibernate.SQL: DEBUG
+    org.retailbank360: ${APP_LOG_LEVEL:INFO}
+
+eureka:
+  client:
+    # Off by default: the services address each other by configured URL, so the POC needs no registry.
+    # Run with the 'discovery' profile (and the discovery server) to switch to lookup by name.
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}:${random.value}
+
+retailbank:
+  services:
+    # This service resolves the recipient itself, so the publishing services never handle contact
+    # details. It is the only consumer of the decrypted-contact endpoint.
+    customer:
+      url: ${RETAILBANK_CUSTOMER_URL:http://localhost:8082}
+
+  # This service is the notification sink; it must not publish notifications to itself.
+  notification:
+    enabled: false
+
+  security:
+    jwt:
+      secret: ${RETAILBANK_JWT_SECRET:}
+      issuer: retailbank360
+
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:}
+
+  audit:
+    url: ${RETAILBANK_AUDIT_URL:http://localhost:8087}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: discovery
+
+# Register with the discovery server and resolve peers by name.
+eureka:
+  client:
+    enabled: true
+
+# Blanking the direct URL is what makes Feign fall back to the load balancer: a client with a url
+# resolves it and never consults the registry.
+retailbank:
+  services:
+    customer:
+      url: ""
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+
+# Throwaway keys for local development only. Every other profile must supply these through the
+# environment, and the services refuse to start without them.
+retailbank:
+  security:
+    jwt:
+      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}

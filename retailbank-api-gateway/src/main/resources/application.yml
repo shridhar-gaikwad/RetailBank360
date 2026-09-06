@@ -2,15 +2,124 @@ server:
   port: 8080
 
 spring:
+  profiles:
+    # 'h2' is the platform-wide local development profile.
+    active: h2
+
   application:
     name: retailbank-api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Routes are static because the POC runs without a discovery server. Swapping the URLs for
+          # lb://service-id is the only change needed once Eureka or Consul is introduced.
+          routes:
+            - id: auth-service
+              uri: ${RETAILBANK_AUTH_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/auth/**
+
+            - id: customer-service
+              uri: ${RETAILBANK_CUSTOMER_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/customers/**
+
+            - id: account-service
+              uri: ${RETAILBANK_ACCOUNT_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/accounts/**
+
+            - id: transaction-service
+              uri: ${RETAILBANK_TRANSACTION_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/v1/transactions/**
+
+            - id: loan-service
+              uri: ${RETAILBANK_LOAN_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/loans/**
+
+            - id: notification-service
+              uri: ${RETAILBANK_NOTIFICATION_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/v1/notifications/**
+
+            - id: audit-service
+              uri: ${RETAILBANK_AUDIT_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/v1/audit/**
+
+            # The lock administration API is mounted by every service that owns lockable resources.
+            # Account-service is the one that matters operationally, so that is where it is routed.
+            - id: lock-admin
+              uri: ${RETAILBANK_ACCOUNT_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/locks/**
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,gateway
 
 logging:
   level:
-    org.hibernate.SQL: DEBUG
+    org.retailbank360: ${APP_LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway: INFO
+
+retailbank:
+  security:
+    jwt:
+      # Must match every service; the gateway only verifies, it never issues.
+      secret: ${RETAILBANK_JWT_SECRET:}
+      issuer: retailbank360
+
+  # The gateway is a router, not a business service: it produces no audit events of its own.
+  # This service raises no customer-facing events.
+  notification:
+    enabled: false
+
+  audit:
+    enabled: false
+
+eureka:
+  client:
+    # Off by default: the services address each other by configured URL, so the POC needs no registry.
+    # Run with the 'discovery' profile (and the discovery server) to switch to lookup by name.
+    enabled: ${EUREKA_ENABLED:false}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    # The instance id includes the port, so several instances of one service on a host stay distinct -
+    # which is the case the distributed lock exists for.
+    instance-id: ${spring.application.name}:${server.port}:${random.value}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: discovery
+
+# Register with the discovery server and resolve peers by name.
+eureka:
+  client:
+    enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+
+# Throwaway keys for local development only. Every other profile must supply these through the
+# environment, and the services refuse to start without them.
+retailbank:
+  security:
+    jwt:
+      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}

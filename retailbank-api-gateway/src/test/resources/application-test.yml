@@ -1,0 +1,26 @@
+# Named application-test.yml, not application.yml, on purpose.
+#
+# A test-scoped application.yml sits ahead of the main one on the classpath and Spring Boot resolves
+# classpath:/application.yml to a single resource - so it would silently REPLACE the main file rather
+# than add to it, and the gateway would start with no routes at all. A profile-specific file is
+# overlaid on top of the real configuration instead, which is also what the test needs to assert.
+spring:
+  config:
+    activate:
+      on-profile: test
+
+retailbank:
+  security:
+    jwt:
+      secret: test-only-retailbank360-signing-secret-32-bytes+
+  crypto:
+    data-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYWVzMjU2LWtleSE=
+    blind-index-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYmxpbmQtaWR4IQ==
+  audit:
+    enabled: false
+  notification:
+    enabled: false
+
+logging:
+  level:
+    org.retailbank360: INFO

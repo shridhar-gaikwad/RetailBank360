@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: retailbank-account-service-test
+
+  datasource:
+    url: jdbc:h2:mem:retailbank_account_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  # Tests run against the real Flyway migrations, not a Hibernate-generated schema. That is
+  # deliberate: it makes the suite prove the migrations still match the entity mappings.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/h2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+
+retailbank:
+  # Test keys. The services now refuse to start without them, which is the point: a missing key
+  # should fail loudly rather than fall back to something shipped in the repository.
+  crypto:
+    data-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYWVzMjU2LWtleSE=
+    blind-index-key: dGVzdC1vbmx5LXJldGFpbGJhbmszNjAtYmxpbmQtaWR4IQ==
+  services:
+    customer:
+      url: http://localhost:0
+
+  # Authorization is covered by its own tests; the money tests run as an unauthenticated caller so
+  # they exercise the business rules rather than the filter chain.
+  security:
+    enabled: false
+    jwt:
+      secret: test-only-retailbank360-signing-secret-32-bytes+
+      issuer: retailbank360
+
+  audit:
+    enabled: false
+  notification:
+    enabled: false
+
+  lock:
+    default-ttl: 30s
+    # Generous, because the concurrency tests deliberately queue many callers on one account.
+    default-wait: 60s
+    retry-delay: 10ms
+    max-retry-delay: 100ms
+    reaper-grace-period: 0s
+    reaper-interval: 1h
+    deadlock-retries: 5
+    deadlock-retry-delay: 20ms
+
+logging:
+  level:
+    org.retailbank360: INFO
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: OFF
