@@ -19,6 +19,7 @@
   <url>http://maven.apache.org</url>
   <modules>
     <module>retailbank-common</module>
+    <module>retailbank-discovery-server</module>
     <module>retailbank-api-gateway</module>
     <module>retailbank-customer-service</module>
     <module>retailbank-account-service</module>
@@ -33,6 +34,8 @@
     <java.version>17</java.version>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
+    <!-- Compiles against the Java 17 API, so the artifacts stay Java 17 even when a newer JDK builds them. -->
+    <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <spring-cloud.version>2025.0.0</spring-cloud.version>
@@ -40,6 +43,33 @@
     <springdoc.version>2.8.9</springdoc.version>
     <lombok.version>1.18.38</lombok.version>
   </properties>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+            <!-- Integration-style tests are named *IT. There is no separate failsafe phase in this
+                 project, so Surefire is told to run them alongside the unit tests. -->
+            <includes>
+              <include>**/*Test.java</include>
+              <include>**/*Tests.java</include>
+              <include>**/*IT.java</include>
+            </includes>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 
   <dependencyManagement>
     <dependencies>

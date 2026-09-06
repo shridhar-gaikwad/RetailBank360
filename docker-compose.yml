@@ -1,0 +1,197 @@
+# The whole platform in one command:
+#
+#   docker compose up --build
+#
+# Brings up PostgreSQL, the discovery server, the seven services and the gateway. Only the gateway
+# (8080) and the two dashboards need to be published; the services talk to each other over the
+# compose network by name.
+#
+# Secrets come from the environment. Copy .env.example to .env and put real values in it - the
+# services refuse to start without them, which is deliberate.
+
+name: retailbank360
+
+x-service-defaults: &service-defaults
+  build:
+    context: .
+  restart: unless-stopped
+  networks: [retailbank]
+  environment: &service-env
+    # postgres for the schema, discovery so peers resolve by name instead of by URL.
+    SPRING_PROFILES_ACTIVE: postgres,discovery
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+    POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    EUREKA_URL: http://discovery-server:8761/eureka/
+    RETAILBANK_JWT_SECRET: ${RETAILBANK_JWT_SECRET:?set RETAILBANK_JWT_SECRET in .env}
+    RETAILBANK_DATA_KEY: ${RETAILBANK_DATA_KEY:?set RETAILBANK_DATA_KEY in .env}
+    RETAILBANK_BLIND_INDEX_KEY: ${RETAILBANK_BLIND_INDEX_KEY:?set RETAILBANK_BLIND_INDEX_KEY in .env}
+    RETAILBANK_AUDIT_URL: http://audit-service:8087
+    RETAILBANK_NOTIFICATION_URL: http://notification-service:8086
+    APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+
+x-healthcheck: &healthcheck
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 60s
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [retailbank]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Runs once, on an empty data directory, to create the per-service databases.
+      - ./docker/postgres/init-databases.sql:/docker-entrypoint-initdb.d/10-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  discovery-server:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-discovery-server
+    environment:
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+    ports:
+      - "8761:8761"
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
+
+  auth-service:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-auth-service
+    depends_on:
+      postgres: {condition: service_healthy}
+      discovery-server: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+
+  customer-service:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-customer-service
+    depends_on:
+      postgres: {condition: service_healthy}
+      discovery-server: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"]
+
+  account-service:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-account-service
+    depends_on:
+      postgres: {condition: service_healthy}
+      discovery-server: {condition: service_healthy}
+      customer-service: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health"]
+
+  transaction-service:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-transaction-service
+    depends_on:
+      postgres: {condition: service_healthy}
+      discovery-server: {condition: service_healthy}
+      account-service: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8084/actuator/health"]
+
+  loan-service:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-loan-service
+    depends_on:
+      postgres: {condition: service_healthy}
+      discovery-server: {condition: service_healthy}
+      account-service: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8085/actuator/health"]
+
+  notification-service:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-notification-service
+    depends_on:
+      discovery-server: {condition: service_healthy}
+      customer-service: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8086/actuator/health"]
+
+  audit-service:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-audit-service
+    depends_on:
+      postgres: {condition: service_healthy}
+      discovery-server: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8087/actuator/health"]
+
+  api-gateway:
+    <<: *service-defaults
+    build:
+      context: .
+      args:
+        MODULE: retailbank-api-gateway
+    environment:
+      <<: *service-env
+      # The gateway routes by host name on the compose network.
+      RETAILBANK_AUTH_URL: http://auth-service:8081
+      RETAILBANK_CUSTOMER_URL: http://customer-service:8082
+      RETAILBANK_ACCOUNT_URL: http://account-service:8083
+      RETAILBANK_TRANSACTION_URL: http://transaction-service:8084
+      RETAILBANK_LOAN_URL: http://loan-service:8085
+    # The only port that needs publishing: everything else is reachable through here.
+    ports:
+      - "8080:8080"
+    depends_on:
+      discovery-server: {condition: service_healthy}
+      auth-service: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+
+networks:
+  retailbank:
+    driver: bridge
+
+volumes:
+  postgres-data:

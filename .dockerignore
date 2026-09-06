@@ -1,0 +1,10 @@
+target/
+*/target/
+data/
+*.mv.db
+*.trace.db
+*.log
+.git/
+.idea/
+*.iml
+README.md

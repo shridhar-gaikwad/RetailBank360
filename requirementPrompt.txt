@@ -1,0 +1,113 @@
+I am working on a company POC to demonstrate my Java/Spring Boot and Microservices skills.
+
+### Tech Stack
+
+* Java 17
+* Spring Boot
+* Microservices Architecture
+* REST APIs
+* Maven/Gradle (use the existing project setup)
+
+I have already developed some initial code, including multiple services/modules, controllers, services, repositories, DTOs/entities, and properties/configuration files.
+
+The existing project is located at:
+
+`abc`
+
+### Task
+
+First, inspect and understand the existing codebase before making any changes.
+
+Understand:
+
+* Project/microservice structure
+* Existing controllers, services, repositories, entities/DTOs
+* Configuration and dependencies
+* Database/repository implementation
+* Existing coding patterns and architecture
+* What is already implemented and what is missing
+
+Then analyze the following requirements:
+
+Retail Banking — Account, Transfers & Loan Servicing System
+Summary:
+Build a core retail banking module that manages customer accounts, deposits/withdrawals,
+internal transfers, and basic consumer loans. The system must ensure financial correctness,
+strict authorization, and transaction atomicity.
+Core Features:
+- CRUD: Customers, Bank Accounts, Transactions, Loans, Repayments, Account Statements.
+- Authentication: Strong login (username/password), optional MFA, session/JWT tokens.
+- Authorization / Roles: customer, teller, loan_officer, admin. Role-based access control.
+- Transactional Support:
+- Transfers and withdrawals must be ACID: debit one account and credit another within
+the same DB transaction; on failure roll back both sides.
+- Loan disbursement should atomically create loan record and credit customer account.
+- Support distributed transaction patterns if microservices are used (sagas or two-phase
+commit alternatives).
+- Validation & Business rules:
+- Prevent negative balances for non-overdraft accounts.
+- Enforce minimum balance, max transfer limits per day, KYC validations for account
+opening.
+- Loan eligibility rules (income, credit score placeholder).
+- Security & Data protection: encrypt sensitive data at rest (PII) and in transit; mask account
+numbers in UI; rate limiting on login and transfer APIs.
+- Idempotency & Concurrency: idempotent transfer API (client-generated idempotency
+key), optimistic locking on balance updates to avoid race conditions.
+- Audit & Logging: immutable transaction ledger, change history for critical operations,
+admin audit views, exportable statements.
+New Feature — Database Locking for Multi-User Operations (Must
+Implement):
+- Requirement: When a user performs a database-related operation that must be isolated
+(for example, balance update, loan disbursement, or large batch settlement), the system
+should place a lock so other users or processes cannot concurrently modify the same
+resource in a conflicting way.
+- Lock types to consider (technology independent):
+- Pessimistic row-level locks (DB locks) for immediate exclusive access.
+- Optimistic locking with version numbers (detect conflicts and retry/abort).
+- Distributed locks (e.g., Redis Redlock, Zookeeper) for microservices or multi-node
+deployments.
+- Lock semantics and requirements:
+- Lock granularity: prefer row-level or resource-level locks (account_id, loan_id), not
+whole-database locks. Whole-database locks should be avoided unless explicitly required
+and justified.
+- Lock scope: locks must protect critical sections such as debit-credit transfer, loan
+disbursement, and payroll payouts.
+- Lock duration: locks must have TTL and must be released on success/failure; provide safe
+cleanup for orphaned locks (process crash).
+- Deadlock handling: detect and resolve deadlocks; return clear error messages and
+support safe retry strategies.
+- UI/UX: show "resource in use" or progress indicators when an operation is locked;
+prevent users from starting conflicting operations.
+- Idempotency: operations should accept idempotency keys, and locks should be
+compatible with idempotent retries.
+- Auditing: record lock acquisition/release events with user id, timestamp, and operation
+id.
+- Acceptance tests:
+- Concurrent transfer attempts on same account must serialize correctly: final balances
+must be consistent.
+- Orphaned lock cleanup test: simulate crash and verify locks expire or are removed.
+- Distributed scenario: ensure lock works across multiple service instances (if microservices used).
+
+Before coding, briefly provide:
+
+1. Current architecture
+2. What is already implemented
+3. Gaps against the requirements
+4. Proposed implementation approach
+
+Then implement the requirements using the existing architecture and coding style.
+
+Important:
+
+* Reuse existing code wherever possible.
+* Do not unnecessarily rewrite or restructure the project.
+* Do not introduce unnecessary libraries/frameworks.
+* Follow Java 17 and Spring Boot best practices.
+* Do not break existing functionality.
+* Handle validation, exceptions, logging, and HTTP responses properly.
+* Build/test the project after implementation and fix any issues.
+
+Finally, summarize the changes made, files modified/created, APIs added, and testing performed.
+
+
+https://github.com/shridhar-gaikwad/RetailBank360.git

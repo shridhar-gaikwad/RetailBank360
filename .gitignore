@@ -1,0 +1,31 @@
+# Build output
+target/
+*.jar
+*.war
+
+# H2 file databases created by the local profile.
+# Deliberately narrow: the services write ./data/retailbank_<name>.mv.db relative to wherever they
+# are started, so the H2 artifacts are matched by name rather than by ignoring whole data/ folders,
+# which may legitimately hold checked-in fixtures.
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Real secrets. Only the example file is committed.
+.env
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+Thumbs.db
+.DS_Store
