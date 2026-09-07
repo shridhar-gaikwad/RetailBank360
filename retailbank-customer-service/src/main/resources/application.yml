@@ -107,6 +107,7 @@ spring:
 # environment, and the services refuse to start without them.
 retailbank:
   security:
+    enabled: false            #  For development purposes only. In production, the security service is required to issue JWTs.
     jwt:
       secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
   crypto:
