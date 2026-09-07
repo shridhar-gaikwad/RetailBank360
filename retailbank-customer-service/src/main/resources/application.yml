@@ -6,7 +6,7 @@ spring:
     name: retailbank-customer-service
 
   profiles:
-    active: h2
+    active: postgres
 
   # The schema is owned by Flyway. {vendor} resolves to h2 or postgresql, so each database
   # gets DDL in its own dialect from one set of versioned migrations.
@@ -89,14 +89,14 @@ eureka:
 spring:
   config:
     activate:
-      on-profile: h2
+      on-profile: postgres
 
 
   datasource:
-    url: jdbc:h2:file:./data/retailbank_customer;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/retailbank_customer_db
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: "${POSTGRES_PASSWORD:postgres}"
 
   h2:
     console:
