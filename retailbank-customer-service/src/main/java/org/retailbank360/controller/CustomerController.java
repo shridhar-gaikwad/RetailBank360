@@ -60,6 +60,7 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.getCustomerById(id));
     }
 
+    /** Editable by staff, and by the customer it belongs to. */
     @PutMapping("/{id}")
     public ResponseEntity<CustomerResponse> updateCustomer(@PathVariable Long id,
                                                            @Valid @RequestBody CustomerRequest request) {
