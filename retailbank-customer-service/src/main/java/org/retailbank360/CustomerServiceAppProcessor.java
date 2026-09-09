@@ -40,6 +40,7 @@ import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServic
         "org.retailbank360.controller",
         "org.retailbank360.filter",
         "org.retailbank360.job",
+        "org.retailbank360.mapper",
         "org.retailbank360.repository",
         "org.retailbank360.service"
 })

@@ -1,6 +1,7 @@
 package org.retailbank360.service;
 
 import org.retailbank360.dto.CustomerContactResponse;
+import org.retailbank360.dto.CustomerPatchRequest;
 import org.retailbank360.dto.CustomerProfileResponse;
 import org.retailbank360.dto.CustomerRequest;
 import org.retailbank360.dto.CustomerResponse;
@@ -18,7 +19,11 @@ public interface CustomerService {
 
     CustomerResponse getCustomerById(Long customerId);
 
+    /** Full replace: every editable field is overwritten from {@code request}. */
     CustomerResponse updateCustomer(Long customerId, CustomerRequest request);
+
+    /** Partial update: only the fields present (non-null) in {@code request} are changed. */
+    CustomerResponse patchCustomer(Long customerId, CustomerPatchRequest request);
 
     /**
      * Closes a customer.

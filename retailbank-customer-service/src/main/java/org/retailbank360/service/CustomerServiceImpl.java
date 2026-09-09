@@ -16,11 +16,13 @@ import org.retailbank360.common.web.PageRequests;
 import org.retailbank360.constants.CustomerStatus;
 import org.retailbank360.constants.KycStatus;
 import org.retailbank360.dto.CustomerContactResponse;
+import org.retailbank360.dto.CustomerPatchRequest;
 import org.retailbank360.dto.CustomerProfileResponse;
 import org.retailbank360.dto.CustomerRequest;
 import org.retailbank360.dto.CustomerResponse;
 import org.retailbank360.dto.KycDecisionRequest;
 import org.retailbank360.entity.Customer;
+import org.retailbank360.mapper.CustomerMapper;
 import org.retailbank360.repository.CustomerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,22 +50,25 @@ public class CustomerServiceImpl implements CustomerService {
     private final KycTransactionService kycTransactionService;
     private final LockTemplate lockTemplate;
     private final AuditPublisher auditPublisher;
+    private final CustomerMapper customerMapper;
 
     public CustomerServiceImpl(CustomerRepository customerRepository,
                                KycTransactionService kycTransactionService,
                                LockTemplate lockTemplate,
-                               AuditPublisher auditPublisher) {
+                               AuditPublisher auditPublisher,
+                               CustomerMapper customerMapper) {
         this.customerRepository = customerRepository;
         this.kycTransactionService = kycTransactionService;
         this.lockTemplate = lockTemplate;
         this.auditPublisher = auditPublisher;
+        this.customerMapper = customerMapper;
     }
 
     @Override
     @Transactional
     public CustomerResponse createCustomer(CustomerRequest request) {
         validateAge(request.getDateOfBirth());
-        assertContactIsFree(request, null);
+        assertContactIsFree(request.getEmail(), request.getPhone(), null);
 
         Customer customer = new Customer();
         applyRequest(customer, request);
@@ -107,11 +112,33 @@ public class CustomerServiceImpl implements CustomerService {
             throw new BusinessRuleViolationException("Customer " + customerId + " is closed and cannot be edited");
         }
         validateAge(request.getDateOfBirth());
-        assertContactIsFree(request, customerId);
+        assertContactIsFree(request.getEmail(), request.getPhone(), customerId);
 
         applyRequest(customer, request);
         Customer saved = customerRepository.save(customer);
         log.info("Updated customer {}", customerId);
+        auditPublisher.publishSuccess(AuditActions.CUSTOMER_UPDATED, "CUSTOMER", customerId, null);
+        return CustomerResponse.from(saved);
+    }
+
+    @Override
+    @Transactional
+    public CustomerResponse patchCustomer(Long customerId, CustomerPatchRequest request) {
+        Customer customer = requireCustomer(customerId);
+        SecurityUtils.requireCustomerAccess(customer.getId());
+
+        if (customer.getStatus() == CustomerStatus.CLOSED) {
+            throw new BusinessRuleViolationException("Customer " + customerId + " is closed and cannot be edited");
+        }
+        // Both guards below no-op when the field is absent, so an untouched contact or DOB is fine.
+        if (request.getDateOfBirth() != null) {
+            validateAge(request.getDateOfBirth());
+        }
+        assertContactIsFree(request.getEmail(), request.getPhone(), customerId);
+
+        customerMapper.updateFromPatch(request, customer);
+        Customer saved = customerRepository.save(customer);
+        log.info("Patched customer {}", customerId);
         auditPublisher.publishSuccess(AuditActions.CUSTOMER_UPDATED, "CUSTOMER", customerId, null);
         return CustomerResponse.from(saved);
     }
@@ -241,19 +268,24 @@ public class CustomerServiceImpl implements CustomerService {
      * Uniqueness on email and phone, checked through the blind indexes.
      *
      * <p>The database constraints are the real guarantee; this check exists to return a clean 409
-     * with a useful message instead of a raw constraint violation.</p>
+     * with a useful message instead of a raw constraint violation. A {@code null} email or phone is
+     * skipped, so a partial update that does not touch a contact field is not blocked by it.</p>
      */
-    private void assertContactIsFree(CustomerRequest request, Long allowedCustomerId) {
-        customerRepository.findByEmailIndex(CryptoHolder.blindIndex(request.getEmail()))
-                .filter(existing -> !existing.getId().equals(allowedCustomerId))
-                .ifPresent(existing -> {
-                    throw new DuplicateResourceException("That email address is already registered");
-                });
-        customerRepository.findByPhoneIndex(CryptoHolder.blindIndex(request.getPhone()))
-                .filter(existing -> !existing.getId().equals(allowedCustomerId))
-                .ifPresent(existing -> {
-                    throw new DuplicateResourceException("That phone number is already registered");
-                });
+    private void assertContactIsFree(String email, String phone, Long allowedCustomerId) {
+        if (email != null) {
+            customerRepository.findByEmailIndex(CryptoHolder.blindIndex(email))
+                    .filter(existing -> !existing.getId().equals(allowedCustomerId))
+                    .ifPresent(existing -> {
+                        throw new DuplicateResourceException("That email address is already registered");
+                    });
+        }
+        if (phone != null) {
+            customerRepository.findByPhoneIndex(CryptoHolder.blindIndex(phone))
+                    .filter(existing -> !existing.getId().equals(allowedCustomerId))
+                    .ifPresent(existing -> {
+                        throw new DuplicateResourceException("That phone number is already registered");
+                    });
+        }
     }
 
     private String generateCustomerNumber() {

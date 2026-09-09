@@ -71,6 +71,12 @@
             <scope>compile</scope>
         </dependency>
 
+        <!-- MapStruct: generates the partial-update mapper (CustomerPatchRequest -> Customer) -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
         <!-- Common Module -->
         <dependency>
             <groupId>org.retailbank360</groupId>
@@ -119,6 +125,34 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- Annotation processors: order matters. lombok-mapstruct-binding lets MapStruct see the
+                 accessors Lombok generates, so it must sit between lombok and mapstruct-processor.
+                 The list is overridden wholesale because the Spring Boot parent already registers
+                 lombok on its own; combine.self=override replaces that instead of appending. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths combine.self="override">
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <!-- Produces an executable fat jar: java -jar target/<module>-1.0-SNAPSHOT.jar -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>

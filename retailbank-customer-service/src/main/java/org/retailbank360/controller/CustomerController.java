@@ -3,6 +3,7 @@ package org.retailbank360.controller;
 import jakarta.validation.Valid;
 import org.retailbank360.common.constants.Roles;
 import org.retailbank360.dto.CustomerContactResponse;
+import org.retailbank360.dto.CustomerPatchRequest;
 import org.retailbank360.dto.CustomerProfileResponse;
 import org.retailbank360.dto.CustomerRequest;
 import org.retailbank360.dto.CustomerResponse;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -65,6 +67,16 @@ public class CustomerController {
     public ResponseEntity<CustomerResponse> updateCustomer(@PathVariable Long id,
                                                            @Valid @RequestBody CustomerRequest request) {
         return ResponseEntity.ok(customerService.updateCustomer(id, request));
+    }
+
+    /**
+     * Partial update: only the fields present in the body are changed, the rest are left as they are.
+     * Same access rule as {@link #updateCustomer}.
+     */
+    @PatchMapping("/{id}")
+    public ResponseEntity<CustomerResponse> patchCustomer(@PathVariable Long id,
+                                                          @Valid @RequestBody CustomerPatchRequest request) {
+        return ResponseEntity.ok(customerService.patchCustomer(id, request));
     }
 
     /** Closes the relationship. History is retained, so this is a status change, not a row delete. */

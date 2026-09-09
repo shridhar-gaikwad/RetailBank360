@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -101,10 +102,25 @@ public class GlobalExceptionHandler {
                 .body(body(HttpStatus.UNAUTHORIZED, "AUTHENTICATION_FAILED", ex.getMessage(), request));
     }
 
+    /** A missing route or an unsupported HTTP method: nothing in this service maps that URL. */
     @ExceptionHandler({NoHandlerFoundException.class, HttpRequestMethodNotSupportedException.class})
     public ResponseEntity<ErrorResponse> handleNoHandler(Exception ex, HttpServletRequest request) {
+        log.debug("No handler for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(body(HttpStatus.NOT_FOUND, "ENDPOINT_NOT_FOUND", ex.getMessage(), request));
+    }
+
+    /**
+     * The dispatcher matched no controller and no static file for this URL (for example the
+     * browser's automatic {@code GET /favicon.ico}). Reported as a plain 404 with a debug line
+     * rather than an ERROR-level stack trace via {@link #handleUnexpected}.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex, HttpServletRequest request) {
+        log.debug("No resource for {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(body(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND",
+                        "The requested resource or data is not available", request));
     }
 
     /** Last resort. The message is deliberately generic so internals never leak to a client. */
