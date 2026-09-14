@@ -8,7 +8,7 @@ spring:
   profiles:
     # h2 keeps the POC runnable with zero setup. Start with -Dspring.profiles.active=postgres
     # (or SPRING_PROFILES_ACTIVE=postgres) to use the PostgreSQL configuration further down.
-    active: h2
+    active: postgres
 
   # The schema is owned by Flyway. {vendor} resolves to h2 or postgresql, so each database
   # gets DDL in its own dialect from one set of versioned migrations.
@@ -158,5 +158,13 @@ spring:
     password: ${POSTGRES_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
+# Throwaway keys for local development only. Every other (real) deployment must supply these
+# through the environment, and the service refuses to start without them.
 retailbank:
-  seed-demo-data: false
+  seed-demo-data: ${RETAILBANK_SEED_DEMO_DATA:false}
+  security:
+    jwt:
+      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
