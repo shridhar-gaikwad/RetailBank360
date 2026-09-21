@@ -4,7 +4,7 @@ server:
 spring:
   profiles:
     # 'h2' is the platform-wide local development profile.
-    active: h2
+    active: postgres
 
   application:
     name: retailbank-notification-service
@@ -76,16 +76,6 @@ spring:
   config:
     activate:
       on-profile: h2
-
-# Throwaway keys for local development only. Every other profile must supply these through the
-# environment, and the services refuse to start without them.
-retailbank:
-  security:
-    jwt:
-      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
-  crypto:
-    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
-    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
 
 ---
 spring:

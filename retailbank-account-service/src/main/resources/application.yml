@@ -7,7 +7,7 @@ spring:
     name: retailbank-account-service
 
   profiles:
-    active: h2
+    active: postgres
 
   # The schema is owned by Flyway. {vendor} resolves to h2 or postgresql, so each database
   # gets DDL in its own dialect from one set of versioned migrations.

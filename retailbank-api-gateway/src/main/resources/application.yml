@@ -2,10 +2,6 @@ server:
   port: 8080
 
 spring:
-  profiles:
-    # 'h2' is the platform-wide local development profile.
-    active: h2
-
   application:
     name: retailbank-api-gateway
 
@@ -72,12 +68,13 @@ logging:
 retailbank:
   security:
     jwt:
-      # Must match every service; the gateway only verifies, it never issues.
-      secret: ${RETAILBANK_JWT_SECRET:}
+      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
       issuer: retailbank360
 
-  # The gateway is a router, not a business service: it produces no audit events of its own.
-  # This service raises no customer-facing events.
+  crypto:
+    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
+    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
+
   notification:
     enabled: false
 
@@ -107,35 +104,3 @@ spring:
 eureka:
   client:
     enabled: true
-
----
-spring:
-  config:
-    activate:
-      on-profile: h2
-
-# Throwaway keys for local development only. Every other profile must supply these through the
-# environment, and the services refuse to start without them.
-retailbank:
-  security:
-    jwt:
-      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
-  crypto:
-    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
-    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
-
----
-spring:
-  config:
-    activate:
-      on-profile: postgres
-
-# Throwaway keys for local development only. Every other (real) deployment must supply these
-# through the environment, and the service refuses to start without them.
-retailbank:
-  security:
-    jwt:
-      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
-  crypto:
-    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
-    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}

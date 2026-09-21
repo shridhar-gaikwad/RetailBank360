@@ -136,16 +136,6 @@ spring:
       enabled: true
       path: /h2-console
 
-# Throwaway keys for local development only. Every other profile must supply these through the
-# environment, and the services refuse to start without them.
-retailbank:
-  security:
-    jwt:
-      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
-  crypto:
-    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
-    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
-
 ---
 spring:
   config:
@@ -161,7 +151,7 @@ spring:
 # Throwaway keys for local development only. Every other (real) deployment must supply these
 # through the environment, and the service refuses to start without them.
 retailbank:
-  seed-demo-data: ${RETAILBANK_SEED_DEMO_DATA:false}
+  seed-demo-data: ${RETAILBANK_SEED_DEMO_DATA:true}
   security:
     jwt:
       secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}

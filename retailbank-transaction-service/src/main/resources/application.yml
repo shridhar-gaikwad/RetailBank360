@@ -6,7 +6,7 @@ spring:
     name: retailbank-transaction-service
 
   profiles:
-    active: h2
+    active: postgres
 
   # The schema is owned by Flyway. {vendor} resolves to h2 or postgresql, so each database
   # gets DDL in its own dialect from one set of versioned migrations.
@@ -139,16 +139,6 @@ spring:
     console:
       enabled: true
       path: /h2-console
-
-# Throwaway keys for local development only. Every other profile must supply these through the
-# environment, and the services refuse to start without them.
-retailbank:
-  security:
-    jwt:
-      secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
-  crypto:
-    data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
-    blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
 
 ---
 spring:

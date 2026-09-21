@@ -6,7 +6,7 @@ spring:
     name: retailbank-audit-service
 
   profiles:
-    active: h2
+    active: postgres
 
   # The schema is owned by Flyway. {vendor} resolves to h2 or postgresql, so each database
   # gets DDL in its own dialect from one set of versioned migrations.
@@ -70,11 +70,16 @@ eureka:
     enabled: ${EUREKA_ENABLED:false}
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
   instance:
     prefer-ip-address: true
     # The instance id includes the port, so several instances of one service on a host stay distinct -
     # which is the case the distributed lock exists for.
     instance-id: ${spring.application.name}:${server.port}:${random.value}
+
+# =============================================================================
+# DISCOVERY PROFILE
+# =============================================================================
 
 ---
 spring:
@@ -82,17 +87,19 @@ spring:
     activate:
       on-profile: discovery
 
-# Register with the discovery server and resolve peers by name.
 eureka:
   client:
     enabled: true
+
+# =============================================================================
+# H2 PROFILE
+# =============================================================================
 
 ---
 spring:
   config:
     activate:
       on-profile: h2
-
 
   datasource:
     url: jdbc:h2:file:./data/retailbank_audit;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
@@ -105,15 +112,18 @@ spring:
       enabled: true
       path: /h2-console
 
-# Throwaway keys for local development only. Every other profile must supply these through the
-# environment, and the services refuse to start without them.
 retailbank:
   security:
     jwt:
       secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
+
   crypto:
     data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
     blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
+
+# =============================================================================
+# POSTGRES PROFILE
+# =============================================================================
 
 ---
 spring:
@@ -133,6 +143,7 @@ retailbank:
   security:
     jwt:
       secret: ${RETAILBANK_JWT_SECRET:change-me-retailbank360-dev-only-signing-secret-32b+}
+
   crypto:
     data-key: ${RETAILBANK_DATA_KEY:cmV0YWlsYmFuazM2MC1kZXYtYWVzMjU2LWtleS0zMmJ5dGVzIQ==}
     blind-index-key: ${RETAILBANK_BLIND_INDEX_KEY:cmV0YWlsYmFuazM2MC1kZXYtYmxpbmQtaW5kZXgta2V5LTMyIQ==}
